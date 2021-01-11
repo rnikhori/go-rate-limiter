@@ -1,0 +1,85 @@
+// Package ratelimit provides a thread-safe token-bucket rate limiter.
+package ratelimit
+
+import (
+	"context"
+	"sync"
+	"time"
+)
+
+// Limiter is a token-bucket rate limiter. Tokens are added at rate per
+// second, up to a maximum of burst, and each call to Allow or Wait
+// consumes one token.
+type Limiter struct {
+	mu         sync.Mutex
+	rate       float64
+	burst      float64
+	tokens     float64
+	lastRefill time.Time
+}
+
+// NewLimiter creates a Limiter that refills at rate tokens per second with
+// a maximum burst capacity of burst tokens. The bucket starts full.
+func NewLimiter(rate float64, burst int) *Limiter {
+	return &Limiter{
+		rate:       rate,
+		burst:      float64(burst),
+		tokens:     float64(burst),
+		lastRefill: time.Now(),
+	}
+}
+
+// Allow reports whether a token is available and, if so, consumes it.
+func (l *Limiter) Allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.refillLocked(time.Now())
+	if l.tokens < 1 {
+		return false
+	}
+	l.tokens--
+	return true
+}
+
+// Wait blocks until a token becomes available or ctx is cancelled, in
+// which case it returns ctx.Err().
+func (l *Limiter) Wait(ctx context.Context) error {
+	for {
+		l.mu.Lock()
+		now := time.Now()
+		l.refillLocked(now)
+
+		if l.tokens >= 1 {
+			l.tokens--
+			l.mu.Unlock()
+			return nil
+		}
+
+		missing := 1 - l.tokens
+		wait := time.Duration(missing / l.rate * float64(time.Second))
+		l.mu.Unlock()
+
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+// refillLocked adds tokens accumulated since lastRefill, capped at burst.
+// Callers must hold l.mu.
+func (l *Limiter) refillLocked(now time.Time) {
+	elapsed := now.Sub(l.lastRefill).Seconds()
+	if elapsed <= 0 {
+		return
+	}
+	l.tokens += elapsed * l.rate
+	if l.tokens > l.burst {
+		l.tokens = l.burst
+	}
+	l.lastRefill = now
+}
