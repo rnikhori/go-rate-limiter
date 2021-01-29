@@ -4,6 +4,7 @@ package ratelimit
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,6 +17,9 @@ type Limiter struct {
 	burst      float64
 	tokens     float64
 	lastRefill time.Time
+
+	allowed atomic.Uint64
+	denied  atomic.Uint64
 }
 
 // NewLimiter creates a Limiter that refills at rate tokens per second with
@@ -36,9 +40,11 @@ func (l *Limiter) Allow() bool {
 
 	l.refillLocked(time.Now())
 	if l.tokens < 1 {
+		l.denied.Add(1)
 		return false
 	}
 	l.tokens--
+	l.allowed.Add(1)
 	return true
 }
 
@@ -53,6 +59,7 @@ func (l *Limiter) Wait(ctx context.Context) error {
 		if l.tokens >= 1 {
 			l.tokens--
 			l.mu.Unlock()
+			l.allowed.Add(1)
 			return nil
 		}
 
