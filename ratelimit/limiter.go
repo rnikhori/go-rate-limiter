@@ -77,6 +77,15 @@ func (l *Limiter) Wait(ctx context.Context) error {
 	}
 }
 
+// Stats returns a snapshot of the limiter's allowed/denied request counts.
+// It is safe to call concurrently with Allow and Wait.
+func (l *Limiter) Stats() Stats {
+	return Stats{
+		Allowed: l.allowed.Load(),
+		Denied:  l.denied.Load(),
+	}
+}
+
 // refillLocked adds tokens accumulated since lastRefill, capped at burst.
 // Callers must hold l.mu.
 func (l *Limiter) refillLocked(now time.Time) {
