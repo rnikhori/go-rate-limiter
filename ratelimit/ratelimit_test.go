@@ -69,3 +69,23 @@ func TestWaitReturnsOnContextCancel(t *testing.T) {
 		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
 	}
 }
+
+func TestStatsTracksAllowedAndDenied(t *testing.T) {
+	l := NewLimiter(1, 2)
+
+	l.Allow()
+	l.Allow()
+	l.Allow()
+	l.Allow()
+
+	stats := l.Stats()
+	if stats.Allowed != 2 {
+		t.Fatalf("expected 2 allowed, got %d", stats.Allowed)
+	}
+	if stats.Denied != 2 {
+		t.Fatalf("expected 2 denied, got %d", stats.Denied)
+	}
+	if total := stats.Total(); total != 4 {
+		t.Fatalf("expected total of 4, got %d", total)
+	}
+}
