@@ -77,6 +77,20 @@ func (l *Limiter) Wait(ctx context.Context) error {
 	}
 }
 
+// Rate returns the limiter's current refill rate in tokens per second.
+func (l *Limiter) Rate() float64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.rate
+}
+
+// Burst returns the limiter's current maximum burst capacity.
+func (l *Limiter) Burst() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return int(l.burst)
+}
+
 // Stats returns a snapshot of the limiter's allowed/denied request counts.
 // It is safe to call concurrently with Allow and Wait.
 func (l *Limiter) Stats() Stats {
