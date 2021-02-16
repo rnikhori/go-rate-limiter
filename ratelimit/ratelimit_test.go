@@ -70,6 +70,17 @@ func TestWaitReturnsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestRateAndBurstAccessors(t *testing.T) {
+	l := NewLimiter(5, 10)
+
+	if got := l.Rate(); got != 5 {
+		t.Fatalf("expected rate 5, got %v", got)
+	}
+	if got := l.Burst(); got != 10 {
+		t.Fatalf("expected burst 10, got %v", got)
+	}
+}
+
 func TestStatsTracksAllowedAndDenied(t *testing.T) {
 	l := NewLimiter(1, 2)
 
