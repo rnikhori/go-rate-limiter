@@ -77,6 +77,16 @@ func (l *Limiter) Wait(ctx context.Context) error {
 	}
 }
 
+// SetRate changes the limiter's refill rate at runtime. Pending token
+// accumulation under the previous rate is settled first, so the new rate
+// only affects refills from this point forward.
+func (l *Limiter) SetRate(rate float64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.refillLocked(time.Now())
+	l.rate = rate
+}
+
 // Rate returns the limiter's current refill rate in tokens per second.
 func (l *Limiter) Rate() float64 {
 	l.mu.Lock()
