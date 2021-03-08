@@ -87,6 +87,19 @@ func (l *Limiter) SetRate(rate float64) {
 	l.rate = rate
 }
 
+// SetBurst changes the limiter's maximum burst capacity at runtime. If the
+// new burst is smaller than the current token count, the available tokens
+// are capped down to the new burst immediately.
+func (l *Limiter) SetBurst(burst int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.refillLocked(time.Now())
+	l.burst = float64(burst)
+	if l.tokens > l.burst {
+		l.tokens = l.burst
+	}
+}
+
 // Rate returns the limiter's current refill rate in tokens per second.
 func (l *Limiter) Rate() float64 {
 	l.mu.Lock()
