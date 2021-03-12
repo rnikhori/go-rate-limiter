@@ -70,6 +70,41 @@ func TestWaitReturnsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestSetRateTakesEffectImmediately(t *testing.T) {
+	l := NewLimiter(1, 1) // refill every 1s
+
+	if !l.Allow() {
+		t.Fatal("expected first request to be allowed")
+	}
+	if l.Allow() {
+		t.Fatal("expected second request to be denied before refill")
+	}
+
+	l.SetRate(1000) // refill every 1ms from now on
+
+	time.Sleep(10 * time.Millisecond)
+
+	if !l.Allow() {
+		t.Fatal("expected request to be allowed after rate increase")
+	}
+}
+
+func TestSetBurstCapsTokensWhenShrunk(t *testing.T) {
+	l := NewLimiter(1, 5)
+
+	l.SetBurst(1)
+	if got := l.Burst(); got != 1 {
+		t.Fatalf("expected burst 1, got %d", got)
+	}
+
+	if !l.Allow() {
+		t.Fatal("expected first request to be allowed")
+	}
+	if l.Allow() {
+		t.Fatal("expected second request to be denied, tokens should be capped at new burst")
+	}
+}
+
 func TestRateAndBurstAccessors(t *testing.T) {
 	l := NewLimiter(5, 10)
 
