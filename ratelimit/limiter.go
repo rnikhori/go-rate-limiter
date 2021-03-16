@@ -77,6 +77,17 @@ func (l *Limiter) Wait(ctx context.Context) error {
 	}
 }
 
+// Reset restores the limiter to a full bucket and zeroes its Stats
+// counters, as if it had just been created with NewLimiter.
+func (l *Limiter) Reset() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.tokens = l.burst
+	l.lastRefill = time.Now()
+	l.allowed.Store(0)
+	l.denied.Store(0)
+}
+
 // SetRate changes the limiter's refill rate at runtime. Pending token
 // accumulation under the previous rate is settled first, so the new rate
 // only affects refills from this point forward.
