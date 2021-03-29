@@ -70,6 +70,35 @@ func TestWaitReturnsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestResetRestoresFullBucketAndStats(t *testing.T) {
+	l := NewLimiter(1, 3)
+
+	for i := 0; i < 4; i++ {
+		l.Allow()
+	}
+
+	stats := l.Stats()
+	if stats.Total() == 0 {
+		t.Fatal("expected some requests to be recorded before Reset")
+	}
+
+	l.Reset()
+
+	stats = l.Stats()
+	if stats.Allowed != 0 || stats.Denied != 0 {
+		t.Fatalf("expected zeroed stats after Reset, got %+v", stats)
+	}
+
+	for i := 0; i < 3; i++ {
+		if !l.Allow() {
+			t.Fatalf("request %d: expected allowed with full burst after Reset", i)
+		}
+	}
+	if l.Allow() {
+		t.Fatal("expected burst to be exhausted again after Reset replenished it")
+	}
+}
+
 func TestSetRateTakesEffectImmediately(t *testing.T) {
 	l := NewLimiter(1, 1) // refill every 1s
 
