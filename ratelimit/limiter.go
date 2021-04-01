@@ -51,6 +51,10 @@ func (l *Limiter) Allow() bool {
 // Wait blocks until a token becomes available or ctx is cancelled, in
 // which case it returns ctx.Err().
 func (l *Limiter) Wait(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	for {
 		l.mu.Lock()
 		now := time.Now()
@@ -63,9 +67,16 @@ func (l *Limiter) Wait(ctx context.Context) error {
 			return nil
 		}
 
+		rate := l.rate
 		missing := 1 - l.tokens
-		wait := time.Duration(missing / l.rate * float64(time.Second))
 		l.mu.Unlock()
+
+		var wait time.Duration
+		if rate <= 0 {
+			wait = time.Hour
+		} else {
+			wait = time.Duration(missing / rate * float64(time.Second))
+		}
 
 		timer := time.NewTimer(wait)
 		select {
