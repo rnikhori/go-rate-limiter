@@ -70,6 +70,36 @@ func TestWaitReturnsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestWaitReturnsImmediatelyOnPreCancelledContext(t *testing.T) {
+	l := NewLimiter(1, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	start := time.Now()
+	if err := l.Wait(ctx); err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Millisecond {
+		t.Fatalf("expected Wait to return immediately, took %v", elapsed)
+	}
+}
+
+func TestWaitWithZeroRateBlocksUntilContextDone(t *testing.T) {
+	l := NewLimiter(0, 1)
+
+	if !l.Allow() {
+		t.Fatal("expected first request to be allowed from initial burst")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	if err := l.Wait(ctx); err != context.DeadlineExceeded {
+		t.Fatalf("expected context.DeadlineExceeded with zero rate, got %v", err)
+	}
+}
+
 func TestResetRestoresFullBucketAndStats(t *testing.T) {
 	l := NewLimiter(1, 3)
 
