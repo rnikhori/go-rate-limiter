@@ -21,6 +21,28 @@ if err := limiter.Wait(ctx); err != nil {
 }
 ```
 
+### Metrics
+
+Every limiter tracks how many requests it has allowed and denied:
+
+```go
+stats := limiter.Stats()
+fmt.Println(stats.Allowed, stats.Denied, stats.Total())
+```
+
+### Runtime configuration
+
+Rate and burst can be changed after the limiter is created, and a limiter
+can be restored to a fresh state:
+
+```go
+limiter.SetRate(10)   // tokens/sec from now on
+limiter.SetBurst(20)  // new maximum burst capacity
+limiter.Reset()       // full bucket, zeroed stats
+```
+
+`Rate()` and `Burst()` report the current configuration.
+
 Run the demo:
 
 ```sh
