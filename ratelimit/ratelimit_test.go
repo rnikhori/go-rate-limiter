@@ -6,6 +6,17 @@ import (
 	"time"
 )
 
+func BenchmarkLimiterAllowContended(b *testing.B) {
+	l := NewLimiter(1e9, 1e9) // effectively unlimited, isolates lock/refill overhead
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			l.Allow()
+		}
+	})
+}
+
 func TestAllowBurst(t *testing.T) {
 	l := NewLimiter(1, 3)
 
