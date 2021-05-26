@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -35,6 +36,13 @@ func NewKeyedLimiter(rate float64, burst int) *KeyedLimiter {
 // a new limiter for key on first use.
 func (k *KeyedLimiter) Allow(key string) bool {
 	return k.limiterFor(key).Allow()
+}
+
+// Wait blocks until a request for key may proceed or ctx is done, in
+// which case it returns ctx.Err(). A new limiter for key is created on
+// first use if necessary.
+func (k *KeyedLimiter) Wait(ctx context.Context, key string) error {
+	return k.limiterFor(key).Wait(ctx)
 }
 
 func (k *KeyedLimiter) limiterFor(key string) *Limiter {
