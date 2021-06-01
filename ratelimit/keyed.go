@@ -45,6 +45,25 @@ func (k *KeyedLimiter) Wait(ctx context.Context, key string) error {
 	return k.limiterFor(key).Wait(ctx)
 }
 
+// EvictIdle removes every key whose limiter has not been used (via Allow
+// or Wait) for at least maxIdle, freeing memory held by clients that have
+// gone quiet. It returns the number of keys evicted.
+func (k *KeyedLimiter) EvictIdle(maxIdle time.Duration) int {
+	cutoff := time.Now().Add(-maxIdle)
+
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	evicted := 0
+	for key, entry := range k.buckets {
+		if entry.lastSeen.Before(cutoff) {
+			delete(k.buckets, key)
+			evicted++
+		}
+	}
+	return evicted
+}
+
 func (k *KeyedLimiter) limiterFor(key string) *Limiter {
 	now := time.Now()
 
