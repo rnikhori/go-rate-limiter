@@ -21,6 +21,26 @@ func TestKeyedLimiterIsolatesKeys(t *testing.T) {
 	}
 }
 
+func TestKeyedLimiterEvictIdle(t *testing.T) {
+	k := NewKeyedLimiter(1, 1)
+
+	k.Allow("stale")
+	time.Sleep(20 * time.Millisecond)
+	k.Allow("fresh")
+
+	evicted := k.EvictIdle(10 * time.Millisecond)
+	if evicted != 1 {
+		t.Fatalf("expected 1 key evicted, got %d", evicted)
+	}
+
+	if _, ok := k.buckets["stale"]; ok {
+		t.Fatal("expected stale key to be removed")
+	}
+	if _, ok := k.buckets["fresh"]; !ok {
+		t.Fatal("expected fresh key to remain")
+	}
+}
+
 func TestKeyedLimiterWaitPerKey(t *testing.T) {
 	k := NewKeyedLimiter(200, 1) // refill every 5ms
 
