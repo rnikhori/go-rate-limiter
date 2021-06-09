@@ -45,6 +45,26 @@ func (k *KeyedLimiter) Wait(ctx context.Context, key string) error {
 	return k.limiterFor(key).Wait(ctx)
 }
 
+// Len returns the number of keys currently tracked by the KeyedLimiter.
+func (k *KeyedLimiter) Len() int {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return len(k.buckets)
+}
+
+// Keys returns a snapshot of the keys currently tracked by the
+// KeyedLimiter. The order is unspecified.
+func (k *KeyedLimiter) Keys() []string {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+
+	keys := make([]string, 0, len(k.buckets))
+	for key := range k.buckets {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 // EvictIdle removes every key whose limiter has not been used (via Allow
 // or Wait) for at least maxIdle, freeing memory held by clients that have
 // gone quiet. It returns the number of keys evicted.
