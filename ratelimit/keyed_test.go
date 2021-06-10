@@ -21,6 +21,34 @@ func TestKeyedLimiterIsolatesKeys(t *testing.T) {
 	}
 }
 
+func TestKeyedLimiterKeysAndLen(t *testing.T) {
+	k := NewKeyedLimiter(1, 1)
+
+	if k.Len() != 0 {
+		t.Fatalf("expected empty KeyedLimiter to have Len 0, got %d", k.Len())
+	}
+
+	k.Allow("alice")
+	k.Allow("bob")
+
+	if got := k.Len(); got != 2 {
+		t.Fatalf("expected Len 2, got %d", got)
+	}
+
+	keys := k.Keys()
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 keys, got %v", keys)
+	}
+
+	seen := map[string]bool{}
+	for _, key := range keys {
+		seen[key] = true
+	}
+	if !seen["alice"] || !seen["bob"] {
+		t.Fatalf("expected keys to contain alice and bob, got %v", keys)
+	}
+}
+
 func TestKeyedLimiterEvictIdle(t *testing.T) {
 	k := NewKeyedLimiter(1, 1)
 
