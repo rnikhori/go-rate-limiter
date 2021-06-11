@@ -45,6 +45,14 @@ func (k *KeyedLimiter) Wait(ctx context.Context, key string) error {
 	return k.limiterFor(key).Wait(ctx)
 }
 
+// Remove deletes key's limiter immediately, regardless of how recently it
+// was used. The next Allow or Wait call for key starts a fresh limiter.
+func (k *KeyedLimiter) Remove(key string) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	delete(k.buckets, key)
+}
+
 // Len returns the number of keys currently tracked by the KeyedLimiter.
 func (k *KeyedLimiter) Len() int {
 	k.mu.Lock()
