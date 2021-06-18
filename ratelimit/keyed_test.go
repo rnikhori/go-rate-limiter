@@ -21,6 +21,24 @@ func TestKeyedLimiterIsolatesKeys(t *testing.T) {
 	}
 }
 
+func TestKeyedLimiterRemove(t *testing.T) {
+	k := NewKeyedLimiter(1, 1)
+
+	k.Allow("alice")
+	if k.Len() != 1 {
+		t.Fatalf("expected 1 key, got %d", k.Len())
+	}
+
+	k.Remove("alice")
+	if k.Len() != 0 {
+		t.Fatalf("expected key to be removed, Len is %d", k.Len())
+	}
+
+	if !k.Allow("alice") {
+		t.Fatal("expected a fresh limiter with full burst after Remove")
+	}
+}
+
 func TestKeyedLimiterKeysAndLen(t *testing.T) {
 	k := NewKeyedLimiter(1, 1)
 
