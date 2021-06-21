@@ -45,6 +45,38 @@ func (k *KeyedLimiter) Wait(ctx context.Context, key string) error {
 	return k.limiterFor(key).Wait(ctx)
 }
 
+// Stats returns the allowed/denied counts for key's limiter. The second
+// return value is false if key has never been seen.
+func (k *KeyedLimiter) Stats(key string) (Stats, bool) {
+	k.mu.Lock()
+	entry, ok := k.buckets[key]
+	k.mu.Unlock()
+
+	if !ok {
+		return Stats{}, false
+	}
+	return entry.limiter.Stats(), true
+}
+
+// TotalStats aggregates the allowed/denied counts across every key
+// currently tracked by the KeyedLimiter.
+func (k *KeyedLimiter) TotalStats() Stats {
+	k.mu.Lock()
+	entries := make([]*keyedEntry, 0, len(k.buckets))
+	for _, entry := range k.buckets {
+		entries = append(entries, entry)
+	}
+	k.mu.Unlock()
+
+	var total Stats
+	for _, entry := range entries {
+		s := entry.limiter.Stats()
+		total.Allowed += s.Allowed
+		total.Denied += s.Denied
+	}
+	return total
+}
+
 // Remove deletes key's limiter immediately, regardless of how recently it
 // was used. The next Allow or Wait call for key starts a fresh limiter.
 func (k *KeyedLimiter) Remove(key string) {
