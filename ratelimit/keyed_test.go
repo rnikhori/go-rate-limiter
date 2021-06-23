@@ -21,6 +21,31 @@ func TestKeyedLimiterIsolatesKeys(t *testing.T) {
 	}
 }
 
+func TestKeyedLimiterStatsAggregation(t *testing.T) {
+	k := NewKeyedLimiter(1, 1)
+
+	k.Allow("alice")
+	k.Allow("alice") // denied, burst exhausted
+	k.Allow("bob")
+
+	aliceStats, ok := k.Stats("alice")
+	if !ok {
+		t.Fatal("expected stats to exist for alice")
+	}
+	if aliceStats.Allowed != 1 || aliceStats.Denied != 1 {
+		t.Fatalf("expected alice stats {1,1}, got %+v", aliceStats)
+	}
+
+	if _, ok := k.Stats("carol"); ok {
+		t.Fatal("expected no stats for a key that was never seen")
+	}
+
+	total := k.TotalStats()
+	if total.Allowed != 2 || total.Denied != 1 {
+		t.Fatalf("expected total stats {2,1}, got %+v", total)
+	}
+}
+
 func TestKeyedLimiterRemove(t *testing.T) {
 	k := NewKeyedLimiter(1, 1)
 
