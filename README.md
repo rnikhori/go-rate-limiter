@@ -43,6 +43,35 @@ limiter.Reset()       // full bucket, zeroed stats
 
 `Rate()` and `Burst()` report the current configuration.
 
+### Per-key limiting
+
+`KeyedLimiter` keeps one bucket per key (an IP, a user ID, an API token),
+creating buckets lazily the first time a key is seen:
+
+```go
+keyed := ratelimit.NewKeyedLimiter(5, 10) // same rate/burst for every key
+
+if keyed.Allow(clientIP) {
+    // proceed
+}
+
+if err := keyed.Wait(ctx, clientIP); err != nil {
+    // ctx was cancelled/timed out
+}
+```
+
+Keys that go quiet can be cleaned up so memory doesn't grow unbounded:
+
+```go
+keyed.EvictIdle(10 * time.Minute) // drop keys unused for 10+ minutes
+keyed.Remove(clientIP)            // or drop one key explicitly
+keyed.Len()                       // keys currently tracked
+keyed.Keys()                      // snapshot of tracked keys
+```
+
+Per-key and aggregated metrics are available via `Stats(key)` and
+`TotalStats()`.
+
 Run the demo:
 
 ```sh
