@@ -2,9 +2,29 @@ package ratelimit
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 )
+
+func BenchmarkKeyedLimiterAllowContended(b *testing.B) {
+	k := NewKeyedLimiter(1e9, 1e9) // effectively unlimited, isolates map/lock overhead
+
+	const numKeys = 64
+	keys := make([]string, numKeys)
+	for i := range keys {
+		keys[i] = strconv.Itoa(i)
+	}
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			k.Allow(keys[i%numKeys])
+			i++
+		}
+	})
+}
 
 func TestKeyedLimiterIsolatesKeys(t *testing.T) {
 	k := NewKeyedLimiter(1, 1)
