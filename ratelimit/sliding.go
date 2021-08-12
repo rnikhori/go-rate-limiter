@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -55,6 +56,37 @@ func (s *SlidingWindowLimiter) Allow() bool {
 	s.currentCt++
 	s.allowed++
 	return true
+}
+
+var _ RateLimiter = (*SlidingWindowLimiter)(nil)
+
+// Wait blocks until a request may proceed under the window limit or ctx
+// is done, in which case it returns ctx.Err(). It polls at a fraction of
+// the window size, since the weighted count has no single well-defined
+// "next available" instant the way a token bucket does.
+func (s *SlidingWindowLimiter) Wait(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	pollInterval := s.window / 20
+	if pollInterval <= 0 {
+		pollInterval = time.Millisecond
+	}
+
+	for {
+		if s.Allow() {
+			return nil
+		}
+
+		timer := time.NewTimer(pollInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // advanceLocked rolls the window forward if enough time has elapsed.
