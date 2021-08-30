@@ -58,6 +58,33 @@ func (s *SlidingWindowLimiter) Allow() bool {
 	return true
 }
 
+// SetRate changes the maximum number of requests permitted per window at
+// runtime.
+func (s *SlidingWindowLimiter) SetRate(limit int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.limit = limit
+}
+
+// Reset clears the limiter's window counters and stats, as if it had just
+// been created with NewSlidingWindowLimiter.
+func (s *SlidingWindowLimiter) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.windowStart = time.Now()
+	s.currentCt = 0
+	s.previousCt = 0
+	s.allowed = 0
+	s.denied = 0
+}
+
+// Stats returns a snapshot of the limiter's allowed/denied request counts.
+func (s *SlidingWindowLimiter) Stats() Stats {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return Stats{Allowed: s.allowed, Denied: s.denied}
+}
+
 var _ RateLimiter = (*SlidingWindowLimiter)(nil)
 
 // Wait blocks until a request may proceed under the window limit or ctx
