@@ -37,6 +37,33 @@ func TestSlidingWindowLimiterWeightsPreviousWindow(t *testing.T) {
 	}
 }
 
+func TestSlidingWindowLimiterSetRateAndReset(t *testing.T) {
+	s := NewSlidingWindowLimiter(1, 50*time.Millisecond)
+
+	if !s.Allow() {
+		t.Fatal("expected first request to be allowed")
+	}
+	if s.Allow() {
+		t.Fatal("expected second request to be denied at limit 1")
+	}
+
+	s.SetRate(5)
+	if !s.Allow() {
+		t.Fatal("expected request to be allowed after raising the limit")
+	}
+
+	stats := s.Stats()
+	if stats.Allowed != 2 || stats.Denied != 1 {
+		t.Fatalf("expected stats {2,1}, got %+v", stats)
+	}
+
+	s.Reset()
+	stats = s.Stats()
+	if stats.Allowed != 0 || stats.Denied != 0 {
+		t.Fatalf("expected zeroed stats after Reset, got %+v", stats)
+	}
+}
+
 func TestSlidingWindowLimiterWaitUnblocksAfterWindow(t *testing.T) {
 	window := 30 * time.Millisecond
 	s := NewSlidingWindowLimiter(1, window)
