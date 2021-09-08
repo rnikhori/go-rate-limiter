@@ -6,6 +6,17 @@ import (
 	"time"
 )
 
+func BenchmarkSlidingWindowLimiterAllowContended(b *testing.B) {
+	s := NewSlidingWindowLimiter(1<<30, time.Hour) // effectively unlimited, isolates lock overhead
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			s.Allow()
+		}
+	})
+}
+
 func TestSlidingWindowLimiterAllowsUpToLimit(t *testing.T) {
 	s := NewSlidingWindowLimiter(3, 50*time.Millisecond)
 
