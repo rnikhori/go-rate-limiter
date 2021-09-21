@@ -72,6 +72,22 @@ keyed.Keys()                      // snapshot of tracked keys
 Per-key and aggregated metrics are available via `Stats(key)` and
 `TotalStats()`.
 
+### Sliding window limiting
+
+`SlidingWindowLimiter` is an alternative algorithm that caps requests to
+a fixed count per rolling time window, instead of refilling tokens
+continuously. It implements the same `RateLimiter` interface
+(`Allow`, `Wait`, `SetRate`, `Reset`, `Stats`) as `Limiter`, so the two are
+interchangeable wherever `ratelimit.RateLimiter` is accepted:
+
+```go
+window := ratelimit.NewSlidingWindowLimiter(100, time.Minute) // 100 req/min
+
+if window.Allow() {
+    // proceed
+}
+```
+
 Run the demo:
 
 ```sh
