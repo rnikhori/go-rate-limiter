@@ -5,11 +5,20 @@ package httplimit
 import (
 	"net"
 	"net/http"
+	"strings"
 )
 
-// remoteIP returns the client's IP address from the request's
-// RemoteAddr, without the port.
+// remoteIP returns the client's IP address, preferring the first address
+// in an X-Forwarded-For header (set by a trusted reverse proxy) and
+// falling back to the request's RemoteAddr.
 func remoteIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if first, _, found := strings.Cut(xff, ","); found {
+			return strings.TrimSpace(first)
+		}
+		return strings.TrimSpace(xff)
+	}
+
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
