@@ -33,12 +33,37 @@ type KeyedAllower interface {
 	Allow(key string) bool
 }
 
+// KeyFunc derives the rate-limit key (for example, a client IP or an API
+// token) from an incoming request.
+type KeyFunc func(*http.Request) string
+
+// Option configures the middleware returned by Middleware.
+type Option func(*config)
+
+type config struct {
+	keyFunc KeyFunc
+}
+
+// WithKeyFunc overrides how the rate-limit key is derived from a request.
+// By default, the client's IP address is used (see remoteIP).
+func WithKeyFunc(fn KeyFunc) Option {
+	return func(c *config) {
+		c.keyFunc = fn
+	}
+}
+
 // Middleware wraps next so that requests are checked against limiter,
-// keyed by the client's remote IP address. Requests the limiter denies
-// receive a 429 Too Many Requests response instead of reaching next.
-func Middleware(limiter KeyedAllower, next http.Handler) http.Handler {
+// keyed by remoteIP (or a custom KeyFunc from WithKeyFunc). Requests the
+// limiter denies receive a 429 Too Many Requests response instead of
+// reaching next.
+func Middleware(limiter KeyedAllower, next http.Handler, opts ...Option) http.Handler {
+	cfg := config{keyFunc: remoteIP}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := remoteIP(r)
+		key := cfg.keyFunc(r)
 		if !limiter.Allow(key) {
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
