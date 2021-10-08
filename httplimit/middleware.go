@@ -5,7 +5,9 @@ package httplimit
 import (
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // remoteIP returns the client's IP address, preferring the first address
@@ -41,7 +43,8 @@ type KeyFunc func(*http.Request) string
 type Option func(*config)
 
 type config struct {
-	keyFunc KeyFunc
+	keyFunc    KeyFunc
+	retryAfter time.Duration
 }
 
 // WithKeyFunc overrides how the rate-limit key is derived from a request.
@@ -49,6 +52,15 @@ type config struct {
 func WithKeyFunc(fn KeyFunc) Option {
 	return func(c *config) {
 		c.keyFunc = fn
+	}
+}
+
+// WithRetryAfter sets the Retry-After header (in whole seconds) on 429
+// responses, hinting to clients how long to wait before retrying. It is
+// omitted by default.
+func WithRetryAfter(d time.Duration) Option {
+	return func(c *config) {
+		c.retryAfter = d
 	}
 }
 
@@ -65,6 +77,9 @@ func Middleware(limiter KeyedAllower, next http.Handler, opts ...Option) http.Ha
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := cfg.keyFunc(r)
 		if !limiter.Allow(key) {
+			if cfg.retryAfter > 0 {
+				w.Header().Set("Retry-After", strconv.Itoa(int(cfg.retryAfter.Seconds())))
+			}
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 			return
 		}
