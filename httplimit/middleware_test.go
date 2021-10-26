@@ -4,9 +4,32 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/rnikhori/go-rate-limiter/ratelimit"
 )
+
+func TestMiddlewareSetsRetryAfterHeaderWhenConfigured(t *testing.T) {
+	limiter := ratelimit.NewKeyedLimiter(1, 1)
+	handler := Middleware(limiter, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}), WithRetryAfter(30*time.Second))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "203.0.113.3:12345"
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req) // consume the only token
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req) // denied
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rec.Code)
+	}
+	if got := rec.Header().Get("Retry-After"); got != "30" {
+		t.Fatalf("expected Retry-After: 30, got %q", got)
+	}
+}
 
 func TestMiddlewareWithCustomKeyFuncIsolatesClients(t *testing.T) {
 	limiter := ratelimit.NewKeyedLimiter(1, 1)
