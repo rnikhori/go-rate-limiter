@@ -88,6 +88,41 @@ if window.Allow() {
 }
 ```
 
+### HTTP middleware
+
+`httplimit.Middleware` wraps an `http.Handler` and rejects requests with
+`429 Too Many Requests` once a client (identified by IP, or by a custom
+key) exceeds its limit:
+
+```go
+import "github.com/rnikhori/go-rate-limiter/httplimit"
+
+keyed := ratelimit.NewKeyedLimiter(5, 10) // 5 req/sec, burst 10, per client
+
+mux := http.NewServeMux()
+mux.HandleFunc("/", handler)
+
+limited := httplimit.Middleware(keyed, mux,
+    httplimit.WithRetryAfter(1*time.Second),
+)
+
+http.ListenAndServe(":8080", limited)
+```
+
+By default the client's IP is used as the key (preferring
+`X-Forwarded-For` when present). Pass `httplimit.WithKeyFunc` to key on
+something else, such as an API token:
+
+```go
+httplimit.Middleware(keyed, mux, httplimit.WithKeyFunc(func(r *http.Request) string {
+    return r.Header.Get("X-API-Key")
+}))
+```
+
+Any type with an `Allow(key string) bool` method works as the limiter
+argument, so `httplimit.Middleware` is not tied to `KeyedLimiter`
+specifically.
+
 Run the demo:
 
 ```sh
