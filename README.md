@@ -123,7 +123,9 @@ Any type with an `Allow(key string) bool` method works as the limiter
 argument, so `httplimit.Middleware` is not tied to `KeyedLimiter`
 specifically.
 
-Run the demo:
+Run the demo, which exercises a single `Limiter`, a `KeyedLimiter` across
+multiple clients, and `httplimit.Middleware` rejecting a client that goes
+over its limit:
 
 ```sh
 go run .
