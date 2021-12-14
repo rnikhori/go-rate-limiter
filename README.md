@@ -1,6 +1,8 @@
 # go-rate-limiter
 
-A minimal, thread-safe token-bucket rate limiter for Go using only the standard library.
+A thread-safe rate limiting toolkit for Go using only the standard
+library: a token-bucket limiter, a sliding-window-counter limiter, a
+per-key wrapper for multi-tenant limiting, and an HTTP middleware.
 
 ## Usage
 
@@ -130,6 +132,22 @@ over its limit:
 ```sh
 go run .
 ```
+
+## Choosing an algorithm
+
+Both limiters implement `ratelimit.RateLimiter` (`Allow`, `Wait`,
+`SetRate`, `Reset`, `Stats`), so code written against the interface works
+with either one.
+
+| | `Limiter` (token bucket) | `SlidingWindowLimiter` |
+|---|---|---|
+| Allows bursts up to a configured size | yes | no, capped at the window's limit |
+| Smooths requests continuously | yes, refills every instant | approximated by weighting the previous window |
+| Natural unit | tokens per second | requests per window duration |
+| Good fit for | APIs that should tolerate short bursts | quotas like "100 requests per minute" |
+
+`KeyedLimiter` currently wraps `Limiter` per key, giving one independent
+token bucket per client.
 
 ## Tests
 
