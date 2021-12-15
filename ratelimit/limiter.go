@@ -1,4 +1,7 @@
-// Package ratelimit provides a thread-safe token-bucket rate limiter.
+// Package ratelimit provides thread-safe rate limiters: a token-bucket
+// Limiter, a SlidingWindowLimiter, and a KeyedLimiter that maintains one
+// limiter per key for per-client rate limiting. All three implement the
+// RateLimiter interface.
 package ratelimit
 
 import (
